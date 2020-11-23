@@ -130,7 +130,7 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 	}
 
 	if collectionName == "admin.$cmd" {
-		b, err := bson.Marshal(map[string]interface{}{"maxWireVersion": 2, "minWireVersion": 2})
+		b, err := bson.Marshal(map[string]interface{}{"maxWireVersion": 2, "minWireVersion": 2, "ok": true})
 		if err != nil {
 			return err
 		}
@@ -216,19 +216,21 @@ func (c *client) process() error {
 			return err
 		}
 
+		ctx := context.Background()
+
 		fmt.Printf("%#v\n", op)
 
 		switch v := op.(type) {
 		case *mongoproto.OpGetMore:
-			if err := c.processGetMore(context.TODO(), v); err != nil {
+			if err := c.processGetMore(ctx, v); err != nil {
 				return err
 			}
 		case *mongoproto.OpQuery:
-			if err := c.processQuery(context.TODO(), v); err != nil {
+			if err := c.processQuery(ctx, v); err != nil {
 				return err
 			}
 		case *mongoproto.OpKillCursors:
-			if err := c.processKillCursors(context.TODO(), v); err != nil {
+			if err := c.processKillCursors(ctx, v); err != nil {
 				return err
 			}
 		}
