@@ -7,7 +7,6 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/mongodb/mongo-tools-common/bsonutil"
 	"github.com/orktes/mongache/pkg/mongoproto"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -138,18 +137,21 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 		docs = append(docs, b)
 	} else {
 
-		var doc bson.M
-		err := bson.Unmarshal(queryOp.Query, &doc)
+		var query bson.M
+		err := bson.Unmarshal(queryOp.Query, &query)
 		if err != nil {
 			return err
 		}
 
-		jsonDoc, err := bsonutil.ConvertBSONValueToJSON(doc)
-		if err != nil {
-			return err
+		var fields bson.M
+		if len(queryOp.ReturnFieldsSelector) > 0 {
+			err = bson.Unmarshal(queryOp.ReturnFieldsSelector, &fields)
+			if err != nil {
+				return err
+			}
 		}
 
-		cur, err := c.server.Handler(queryOp.FullCollectionName, jsonDoc.(bson.M), nil)
+		cur, err := c.server.Handler(queryOp.FullCollectionName, query, fields)
 		if err != nil {
 			return err
 		}
