@@ -11,7 +11,22 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
+
+func TestServerPing(t *testing.T) {
+	s := &Server{}
+	s.init()
+
+	ctx := context.Background()
+
+	cli, err := mongo.NewClient(&options.ClientOptions{Dialer: &dialer{s: s}})
+	assert.NoError(t, err)
+	assert.NoError(t, cli.Connect(ctx))
+	defer cli.Disconnect(ctx)
+
+	assert.NoError(t, cli.Ping(ctx, readpref.Primary()))
+}
 
 func TestServerReadOne(t *testing.T) {
 	s := &Server{
