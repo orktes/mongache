@@ -16,6 +16,7 @@ import (
 func TestServerReadOne(t *testing.T) {
 	s := &Server{
 		Handler: func(collection string, q bson.M, fields bson.M) (Cursor, error) {
+			assert.Equal(t, "foo.test", collection)
 			assert.Equal(t, bson.M{"test": true}, q)
 			return slice.NewCursor([]map[string]interface{}{
 				{
