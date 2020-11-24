@@ -1,45 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"io"
 
 	"github.com/orktes/mongache/pkg/server"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/orktes/mongache/pkg/slice"
+	"go.mongodb.org/mongo-driver/bson"
 )
-
-type sliceIter struct {
-	offset int32
-	data   []interface{}
-}
-
-func (si *sliceIter) Next(ctx context.Context) (interface{}, error) {
-	if si.offset == int32(len(si.data)) {
-		return nil, io.EOF
-	}
-
-	v := si.data[si.offset]
-	si.offset++
-	return v, nil
-}
-
-func (si *sliceIter) Skip(ctx context.Context, n int32) error {
-	si.offset += n
-	if si.offset > int32(len(si.data)) {
-		si.offset = int32(len(si.data))
-	}
-	return nil
-}
-
-func (si *sliceIter) Close(ctx context.Context) error {
-	println("cursor closed")
-	return nil
-}
-
-func (si *sliceIter) Position(ctx context.Context) (int32, error) {
-	return int32(si.offset), nil
-}
 
 func main() {
 	s := server.Server{
@@ -53,11 +20,9 @@ func main() {
 				}
 			}
 
-			return &sliceIter{
-				data: data,
-			}, nil
+			return slice.NewCursor(data)
 		},
 	}
-	err := s.Listen(":6666")
+	err := s.ListenAddr(":6666")
 	panic(err)
 }

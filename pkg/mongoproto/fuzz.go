@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type canWrite interface {

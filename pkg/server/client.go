@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/orktes/mongache/pkg/mongoproto"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 const defaultReturnSize = 1000
@@ -46,10 +46,6 @@ func (c *client) processGetMore(ctx context.Context, getMoreOp *mongoproto.OpGet
 	var flags mongoproto.OpReplyFlags
 	var docs [][]byte
 
-	if getMoreOp.NumberToReturn == 0 {
-		getMoreOp.NumberToReturn = defaultReturnSize
-	}
-
 	cur, ok := c.server.getCursor(getMoreOp.CursorID)
 	if !ok {
 		flags = mongoproto.OpReplyCursorNotFound
@@ -65,6 +61,10 @@ func (c *client) processGetMore(ctx context.Context, getMoreOp *mongoproto.OpGet
 		numReturn := getMoreOp.NumberToReturn
 		if closeCursor {
 			numReturn = -numReturn
+		}
+
+		if numReturn == 0 {
+			numReturn = defaultReturnSize
 		}
 
 		for i := int32(0); i < numReturn; i++ {
@@ -87,6 +87,10 @@ func (c *client) processGetMore(ctx context.Context, getMoreOp *mongoproto.OpGet
 			}
 
 			docs = append(docs, b)
+		}
+
+		if getMoreOp.NumberToReturn != 0 && len(docs) == int(numReturn) {
+			closeCursor = true
 		}
 
 		if closeCursor {
@@ -124,12 +128,10 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 
 	collectionName := queryOp.FullCollectionName
 
-	if queryOp.NumberToReturn == 0 {
-		queryOp.NumberToReturn = defaultReturnSize
-	}
-
 	if collectionName == "admin.$cmd" {
-		b, err := bson.Marshal(map[string]interface{}{"maxWireVersion": 2, "minWireVersion": 2, "ok": true})
+		println(queryOp.String())
+
+		b, err := bson.Marshal(map[string]interface{}{"maxWireVersion": 2, "minWireVersion": 2, "ok": 1, "ismaster": true, "readOnly": true})
 		if err != nil {
 			return err
 		}
@@ -158,11 +160,14 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 
 		cur.Skip(ctx, queryOp.NumberToSkip)
 
-		closeCursor := queryOp.NumberToReturn <= 0
+		closeCursor := queryOp.NumberToReturn < 0
 
 		numReturn := queryOp.NumberToReturn
 		if closeCursor {
 			numReturn = -numReturn
+		}
+		if numReturn == 0 {
+			numReturn = defaultReturnSize
 		}
 
 		for i := int32(0); i < numReturn; i++ {
@@ -185,6 +190,10 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 			}
 
 			docs = append(docs, b)
+		}
+
+		if queryOp.NumberToReturn != 0 && len(docs) == int(numReturn) {
+			closeCursor = true
 		}
 
 		if closeCursor {
@@ -210,15 +219,13 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 	return err
 }
 
-func (c *client) process() error {
+func (c *client) process(ctx context.Context) error {
 	for {
 
 		op, err := mongoproto.OpFromReader(c.conn)
 		if err != nil {
 			return err
 		}
-
-		ctx := context.Background()
 
 		fmt.Printf("%#v\n", op)
 

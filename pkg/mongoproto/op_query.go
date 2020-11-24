@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mongodb/mongo-tools-common/bsonutil"
-	"github.com/mongodb/mongo-tools-common/json"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 const (
@@ -40,11 +38,7 @@ func (op *OpQuery) String() string {
 	if err := bson.Unmarshal(op.Query, &query); err != nil {
 		return "(error unmarshalling)"
 	}
-	queryAsJSON, err := bsonutil.ConvertBSONValueToJSON(query)
-	if err != nil {
-		return fmt.Sprintf("ConvertBSONValueToJSON err: %#v - %v", op, err)
-	}
-	asJSON, err := json.Marshal(queryAsJSON)
+	asJSON, err := bson.MarshalExtJSON(query, false, false)
 	if err != nil {
 		return fmt.Sprintf("json marshal err: %#v - %v", op, err)
 	}

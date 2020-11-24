@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Cursor interface {
@@ -20,7 +20,8 @@ type Cursor interface {
 type QueryHandler func(collection string, q bson.M, fields bson.M) (Cursor, error)
 
 type Server struct {
-	ln net.Listener
+	ln  net.Listener
+	ctx context.Context
 
 	cursorsMutex    sync.RWMutex
 	cursorIDCounter int64
@@ -29,14 +30,23 @@ type Server struct {
 	Handler QueryHandler
 }
 
-func (s *Server) Listen(addr string) error {
+func (s *Server) ListenAddr(addr string) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 
+	return s.Listen(ln)
+}
+
+func (s *Server) init() {
 	s.cursors = map[int64]Cursor{}
+	s.ctx = context.Background()
+}
+
+func (s *Server) Listen(ln net.Listener) error {
 	s.ln = ln
+	s.init()
 
 	return s.listen()
 }
@@ -76,13 +86,13 @@ func (s *Server) listen() error {
 func (s *Server) handleConn(conn net.Conn) {
 	cli := &client{conn: conn, server: s}
 	defer func() {
-		err := cli.close(context.TODO())
+		err := cli.close(s.ctx)
 		if err != nil {
 			panic(err)
 		}
 	}()
 
-	if err := cli.process(); err != nil {
+	if err := cli.process(s.ctx); err != nil {
 		fmt.Printf("Err: %s\n", err.Error())
 	}
 }

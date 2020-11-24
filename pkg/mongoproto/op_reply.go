@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/mongodb/mongo-tools-common/bsonutil"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 const (
