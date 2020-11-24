@@ -89,10 +89,6 @@ func (c *client) processGetMore(ctx context.Context, getMoreOp *mongoproto.OpGet
 			docs = append(docs, b)
 		}
 
-		if getMoreOp.NumberToReturn != 0 && len(docs) == int(numReturn) {
-			closeCursor = true
-		}
-
 		if closeCursor {
 			c.server.removeCursor(getMoreOp.CursorID)
 			if err := cur.Close(ctx); err != nil {
@@ -190,10 +186,6 @@ func (c *client) processQuery(ctx context.Context, queryOp *mongoproto.OpQuery) 
 			}
 
 			docs = append(docs, b)
-		}
-
-		if queryOp.NumberToReturn != 0 && len(docs) == int(numReturn) {
-			closeCursor = true
 		}
 
 		if closeCursor {

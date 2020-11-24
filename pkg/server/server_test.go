@@ -92,7 +92,7 @@ func TestServerReadCursorAll(t *testing.T) {
 	assert.Equal(t, data, result)
 }
 
-func TestServerReadCursorLimit(t *testing.T) {
+func TestServerReadCursorAllWithBatchSize(t *testing.T) {
 	data := make([]map[string]interface{}, 3000)
 	for i := 0; i < 3000; i++ {
 		data[i] = map[string]interface{}{
@@ -116,10 +116,41 @@ func TestServerReadCursorLimit(t *testing.T) {
 	assert.NoError(t, cli.Connect(ctx))
 	defer cli.Disconnect(ctx)
 
-	limit := int64(10)
-	cur, err := cli.Database("foo").Collection("test").Find(ctx, bson.M{}, &options.FindOptions{Limit: &limit})
+	batchSize := int32(50)
+	cur, err := cli.Database("foo").Collection("test").Find(ctx, bson.M{}, &options.FindOptions{BatchSize: &batchSize})
 	assert.NoError(t, err)
 
+	var result []map[string]interface{}
+	assert.NoError(t, cur.All(ctx, &result))
+
+	assert.Equal(t, data, result)
+}
+
+func TestServerReadCursorLimit(t *testing.T) {
+	data := make([]map[string]interface{}, 3000)
+	for i := 0; i < 3000; i++ {
+		data[i] = map[string]interface{}{
+			"foo": fmt.Sprintf("bar_%d", i),
+		}
+	}
+
+	s := &Server{
+		Handler: func(collection string, q bson.M, fields bson.M) (Cursor, error) {
+			return slice.NewCursor(data)
+		},
+	}
+	s.init()
+
+	ctx := context.Background()
+
+	cli, err := mongo.NewClient(&options.ClientOptions{Dialer: &dialer{s: s}})
+	assert.NoError(t, err)
+	assert.NoError(t, cli.Connect(ctx))
+	defer cli.Disconnect(ctx)
+
+	limit := int64(-10)
+	cur, err := cli.Database("foo").Collection("test").Find(ctx, bson.M{}, &options.FindOptions{Limit: &limit})
+	assert.NoError(t, err)
 	var result []map[string]interface{}
 	assert.NoError(t, cur.All(ctx, &result))
 
